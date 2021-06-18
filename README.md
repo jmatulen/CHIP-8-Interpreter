@@ -1,2 +1,3 @@
 Yet Another Chip-8 Interpreter
-**Work In Progress**
+
+**_Work In Progress_**
