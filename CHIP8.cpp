@@ -38,7 +38,7 @@ typedef struct Chip8 {
     |  interpreter  |
     +---------------+= 0x000 (0) Start of Chip-8 RAM */
     
-    // Our 4k of ram
+    //  Our 4kb of ram
     uint16_t ram[4096];
 
     //  Chip-8 has 16 general purpose 8-bit registers, usually referred to as Vx, where
@@ -57,22 +57,22 @@ typedef struct Chip8 {
     //  There are also some "pseudo-registers" which are not accessable from Chip-8
     //  programs. The program counter (PC) should be 16-bit, and is used to store the		
     //  currently executing address. The stack pointer (SP) can be 8-bit, it is used to
-    //	 point to the topmost level of the stack.
+    //	point to the topmost level of the stack.
     
-    //	 The stack is an array of 16 16-bit values, used to store the address that the
-    //	 interpreter shoud return to when finished with a subroutine. Chip-8 allows for
-    //	 up to 16 levels of nested subroutines.
+    //	The stack is an array of 16 16-bit values, used to store the address that the
+    //	interpreter shoud return to when finished with a subroutine. Chip-8 allows for
+    //	up to 16 levels of nested subroutines.
 
     // Registers V0 -- VF
     uint8_t V[16];
 
-    // 16 bit I register
+    // 16 bit Index register
     uint16_t I;
 
     // Program Counter
     uint16_t PC;
 
-    // Current Instruction
+    // Opcode Scheme:
     //                   ++++--:Operation Select
     //                   ||||
     //                   ||||++++--Vx: Regsister Select
@@ -148,43 +148,80 @@ void loadROM(char const* filename, Chip8* vm) {
         }
     }
 }
+// Grab opcode, Increment Program Counter
+void fetch (Chip8* vm) {
+    vm->instr = vm->ram[vm->PC];
+    vm->PC += 2;
+}
+
+void reset (bool arr[64][32]) {
+    for (int i = 0; i<64; i++) {
+        for (int j = 0; j<32; j++) {
+            arr[i][j] = 0;
+        }
+    }
+} 
+
+void draw (const uint8_t x, uint8_t y, uint8_t n, uint16_t I) {
+    
+}
 #define INSTRUCTION_LIST(o)\
-    o("SYS addr"           "0nnn",)\
-    o("CLS"                "00E0",)\
-    o("RET"                "00EE",)\
-    o("JP addr"            "1nnn",)\
-    o("CALL addr"          "2nnn",)\
-    o("SE Vx, byte"        "3xkk",)\
-    o("SNE Vx, byte"       "4xkk",)\
-    o("SE Vx, Vy"          "5xy0",)\
-    o("LD Vx, byte"        "6xkk",)\
-    o("ADD Vx, byte"       "7xkk",)\
-    o("LD Vx, Vy"          "8xy0",)\
-    o("OR Vx, Vy"          "8xy1",)\
-    o("AND Vx, Vy"         "8xy2",)\
-    o("XOR Vx, Vy"         "8xy3",)\
-    o("ADD Vx, Vy"         "8xy4",)\
-    o("SUB Vx, Vy"         "8xy5",)\
-    o("SHR Vx {, Vy}"      "8xy6",)\
-    o("SUBN Vx, Vy"        "8xy7",)\
-    o("SHL Vx {, Vy}"      "8xyE",)\
-    o("SNE Vx, Vy"         "9xy0",)\
-    o("LD I, addr"         "Annn",)\
-    o("JP V0, addr"        "Bnnn",)\
-    o("RND Vx, byte"       "Cxkk",)\
-    o("DRW Vx, Vy, nibble" "Dxyn",)\
-    o("SKP Vx"             "Ex9E",)\
-    o("LD Vx, DT"          "Fx07",)\
-    o("LD Vx, K"           "Fx0A",)\
-    o("LD DT, Vx"          "Fx15",)\
-    o("LD ST, Vx"          "Fx18",)\
-    o("ADD I, Vx"          "Fx1E",)\
-    o("LD F, Vx"           "Fx29",)\
-    o("LD B, Vx"           "Fx33",)\
-    o("LD [I], Vx"         "Fx55",)\
-    o("LD Vx, [I]"         "Fx65",)
+    o("SYS addr",           "0nnn",)                     /*Execute machine language subroutine at address NNN*/\
+    o("CLS",                "00E0", reset(display))      /*Clear the screen*/\
+    o("RET",                "00EE", )                     /*Return from a subroutine*/\
+    o("JP addr",            "1nnn", PC = nnn)            /*Jump to address NNN*/\
+    o("CALL addr",          "2nnn",)                     /*Execute subroutine starting at address NNN*/\
+    o("SE Vx, byte",        "3xkk",)                     /*Skip the following instruction if the value of register VX equals NN*/\
+    o("SNE Vx, byte",       "4xkk",)                     /*Skip the following instruction if the value of register VX is not equal to NN*/\
+    o("SE Vx, Vy",          "5xy0",)                     /*Skip the following instruction if the value of register VX is equal to the value 
+                                                            of register VY*/\
+    o("LD Vx, byte",        "6xkk", V[x] = kk)           /*Store number NN in register VX*/\
+    o("ADD Vx, byte",       "7xkk", V[x] += kk)          /*Add the value NN to register VX*/\
+    o("LD Vx, Vy",          "8xy0",)                     /*Store the value of register VY in register VX*/\
+    o("OR Vx, Vy",          "8xy1",)                     /*Set VX to VX OR VY*/\
+    o("AND Vx, Vy",         "8xy2",)                     /*Set VX to VX AND VY*/\
+    o("XOR Vx, Vy",         "8xy3",)                     /*Set VX to VX XOR VY*/\
+    o("ADD Vx, Vy",         "8xy4",)                     /*Add the value of register VY to register VX
+                                                            Set VF to 01 if a carry occurs
+                                                            Set VF to 00 if a carry does not occur*/\
+    o("SUB Vx, Vy",         "8xy5",)                     /*Subtract the value of register VY from register VX
+                                                            Set VF to 00 if a borrow occurs
+                                                            Set VF to 01 if a borrow does not occur*/\
+    o("SHR Vx {, Vy}",      "8xy6",)                     /*Store the value of register VY shifted right one bit in register VX¹
+                                                            Set register VF to the least significant bit prior to the shift
+                                                            VY is unchanged*/\
+    o("SUBN Vx, Vy",        "8xy7",)                     /*Set register VX to the value of VY minus VX
+                                                            Set VF to 00 if a borrow occurs
+                                                            Set VF to 01 if a borrow does not occur*/\
+    o("SHL Vx {, Vy}",      "8xyE",)                     /*Store the value of register VY shifted left one bit in register VX¹
+                                                            Set register VF to the most significant bit prior to the shift
+                                                            VY is unchanged*/\
+    o("SNE Vx, Vy",         "9xy0",)                     /*Skip the following instruction if the value of register VX is not equal to the 
+                                                           value of register VY*/\
+    o("LD I, addr",         "Annn", I = nnn)             /*Store memory address NNN in register I*/\
+    o("JP V0, addr",        "Bnnn",)                     /*Jump to address NNN + V0*/\
+    o("RND Vx, byte",       "Cxkk",)                     /*Set VX to a random number with a mask of NN*/\
+    o("DRW Vx, Vy, nibble", "Dxyn", display(x, y, n, I)) /*Draw a sprite at position VX, VY with N bytes of sprite data starting at the 
+                                                            address stored in I
+                                                            Set VF to 01 if any set pixels are changed to unset, and 00 otherwise*/\
+    o("SKP Vx",             "Ex9E",)                     /*Skip the following instruction if the key corresponding to the hex value 
+                                                           currently stored register VX is pressed*/\
+    o("LD Vx, DT",          "Fx07",)                     /*Store the current value of the delay timer in register VX*/\
+    o("LD Vx, K",           "Fx0A",)                     /*Wait for a keypress and store the result in register VX*/\
+    o("LD DT, Vx",          "Fx15",)                     /*Set the delay timer to the value of register VX*/\
+    o("LD ST, Vx",          "Fx18",)                     /*Set the sound timer to the value of register VX*/\
+    o("ADD I, Vx",          "Fx1E",)                     /*Add the value stored in register VX to register I*/\
+    o("LD F, Vx",           "Fx29",)                     /*Set I to the memory address of the sprite data corresponding to the hexadecimal 
+                                                           digit stored in register VX*/\
+    o("LD B, Vx",           "Fx33",)                     /*Store the binary-coded decimal equivalent of the value stored in register VX at 
+                                                            addresses I, I + 1, and I + 2*/\
+    o("LD [I], Vx",         "Fx55",)                     /*Store the values of registers V0 to VX inclusive in memory starting at address I
+                                                            I is set to I + X + 1 after operation*/\
+    o("LD Vx, [I]",         "Fx65",)                     /*Fill registers V0 to VX inclusive with the values stored in memory starting at 
+                                                           address I. I is set to I + X + 1 after operation*/
 
 void decode (Chip8* vm) {
+    unsigned vm->instr = vm->ram[vm->PC & 0xFFF]*0x100 + vm->ram[(PC+1) & 0xFFF]; vm->PC += 2;
 
     unsigned u   = vm->instr & OP; // u - First 4 bits of instruction
     unsigned x   = vm->instr & Vx; // x - A 4-bit value, the lower 4 bits of the high byte of the instruction
@@ -192,6 +229,10 @@ void decode (Chip8* vm) {
     unsigned n   = vm->instr & N;  // n or nibble - A 4-bit value, the lowest 4 bits of the instruction
     unsigned kk  = vm->instr & NN; // kk or byte - An 8-bit value, the lowest 8 bits of the instruction
     unsigned nnn = vm->instr & NNN;// nnn or addr - A 12-bit value, the lowest 12 bits of the instruction
+
+    #define o(mnemonic, hex, test, ops) if (test) { ops; } else
+    INSTRUCTION_LIST(o) {}
+    #undef
 }
 
 void initVM (Chip8* vm, const char* ROMfilename) {
