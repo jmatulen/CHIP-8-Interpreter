@@ -160,7 +160,7 @@ void fetch (Chip8* vm) {
     // Increment Program Counter
     vm->PC += 2;
 }
-
+// Reset Chip-8 Display
 void reset (bool arr[64][32]) {
     for (int i = 0; i<64; i++) {
         for (int j = 0; j<32; j++) {
@@ -227,6 +227,7 @@ void draw (const uint8_t* x, const uint8_t* y, const uint8_t* n, const uint16_t*
     o("LD Vx, [I]",         "Fx65", u == 0xF && kk == 0x65, )/*Fill registers V0 to VX inclusive with the values stored in memory starting at 
                                                            address I. I is set to I + X + 1 after operation*/
 
+// Decode current instruction, then execute instruction
 void decode (Chip8* vm) {
     unsigned u   = vm->instr & OP; // u - First 4 bits of instruction
     unsigned x   = vm->instr & Vx; // x - A 4-bit value, the lower 4 bits of the high byte of the instruction
@@ -235,13 +236,13 @@ void decode (Chip8* vm) {
     unsigned kk  = vm->instr & NN; // kk or byte - An 8-bit value, the lowest 8 bits of the instruction
     unsigned nnn = vm->instr & NNN;// nnn or addr - A 12-bit value, the lowest 12 bits of the instruction
 
-    #define o(mnemonic, hex, test, op) if (test) { op; } else
+    // Execute instruction based on opcode
+    #define o(mnemonic, opcode, test, op) if (test) { op; } else
     INSTRUCTION_LIST(o) {}
     #undef o
 }
 
 void initVM (Chip8* vm, const char* ROMfile) {
-    
     // Initialize PC to the 0x200 position in RAM
     vm->PC = 0x200;
     loadROM(ROMfile, vm);
@@ -249,10 +250,10 @@ void initVM (Chip8* vm, const char* ROMfile) {
 
 int main(int argc, char** argv) {
     Chip8* vm;
-
+    
     // Load ROM, set up registers and Program Counter
     initVM (vm, argv[1]);
-
+    
     // Chip-8 Cycle
     for(;;)
     {
